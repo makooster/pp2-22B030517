@@ -55,3 +55,23 @@ else:
 #clarifying that an object is a certain data type
 x = 200
 print(isinstance(x, int))
+
+"""
+print(10 > 9)
+
+True
+
+
+print(10 == 9)
+
+False
+
+print(bool("abc"))
+
+True
+
+print(bool(0))
+
+False
+
+"""
