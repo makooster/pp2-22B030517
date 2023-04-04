@@ -9,8 +9,11 @@ WHITE = (255,255,255)
 x = WIDTH // 2
 y = HEIGHT // 2
 
+# font = pygame.font.SysFont("Arial", 40)
 pygame.display.set_caption("circle")
 screen = pygame.display.set_mode((WIDTH,HEIGHT))
+# txt = font.render("HELLO", True, (0,0,0), )
+# screen.blit(txt, (WIDTH // 2, HEIGHT // 2))
 clock = pygame.time.Clock()
 running = True
 while running:
@@ -29,7 +32,7 @@ while running:
         y -= 20
     if keys[pygame.K_DOWN] and y + 25 < HEIGHT:
         y += 20
-    pygame.display.flip()
+    pygame.display.update()
 
 pygame.quit()
     
