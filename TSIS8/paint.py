@@ -83,6 +83,10 @@ while running:
             brush.size = 20
         elif keys[pygame.K_3]:
             brush.size = 30
+        elif keys[pygame.K_w]:
+            brush.color = WHITE
+        elif keys[pygame.K_b]:
+            brush.color = BLACK
         elif keys[pygame.K_s]:
             brush.draw_rect(screen)
         elif keys[pygame.K_e]:
