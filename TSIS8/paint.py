@@ -1,15 +1,12 @@
 import pygame
 
-# Initialize Pygame
 pygame.init()
 
-# Set screen dimensions
 WIDTH, HEIGHT = 800, 600
 
 # Create screen object
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
-# Set title of window
 pygame.display.set_caption("Simple Paint Program")
 
 # Define colors
@@ -20,7 +17,7 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
 # Set default brush color
-brush_color = BLACK
+brush_color = WHITE
 
 # Set default brush size
 brush_size = 5
@@ -48,13 +45,11 @@ class Brush:
 # Create brush object
 brush = Brush()
 
-# Set clock object
 clock = pygame.time.Clock()
 
-# Set running flag
 running = True
 
-# Main game loop
+
 while running:
     # Handle events
     for event in pygame.event.get():
@@ -72,7 +67,7 @@ while running:
             if draw_mode:
                 brush.update_pos(event.pos)
 
-        # Handle keyboard input
+        
         keys = pygame.key.get_pressed()
         if keys[pygame.K_c]:
             screen.fill(WHITE)
@@ -92,11 +87,11 @@ while running:
             brush.draw_rect(screen)
         elif keys[pygame.K_e]:
             brush.draw_circle(screen)
-    # Update display
+
     pygame.display.update()
 
-    # Tick clock
+    
     clock.tick(60)
 
-# Quit Pygame
+
 pygame.quit()
