@@ -11,7 +11,7 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 GREEN = (0, 255, 0)
 LIGHTBLUE = (0 ,0 , 127)
-FPS = 5
+FPS = 6
 SCORE = 0
 LEVEL = 1
 
@@ -32,11 +32,13 @@ class Point:
         self.x = x
         self.y = y
 
-
-class Food:
-    def __init__(self, x, y):
+class Fruit:
+    def __init__(self, x, y, colour, score, timer, max_timer):
         self.location = Point(x, y)
-
+        self.colour = colour
+        self.score = score
+        self.timer = timer
+        self.max_timer = max_timer
     @property
     def x(self):
         return self.location.x
@@ -45,10 +47,10 @@ class Food:
     def y(self):
         return self.location.y
 
-    def update(self):
+    def draw(self):
         pygame.draw.rect(
             SCREEN,
-            YELLOW,
+            self.colour,
             pygame.Rect(
                 self.location.x * BLOCK_SIZE,
                 self.location.y * BLOCK_SIZE,
@@ -56,30 +58,34 @@ class Food:
                 BLOCK_SIZE,
             )
         )
-class Poison:
-    def __init__(self, x, y):
-        self.location = Point(x, y)
-
-    @property
-    def x(self):
-        return self.location.x
-
-    @property
-    def y(self):
-        return self.location.y
-
     def update(self):
-        pygame.draw.rect(
-            SCREEN,
-            GREEN,
-            pygame.Rect(
-                self.location.x * BLOCK_SIZE,
-                self.location.y * BLOCK_SIZE,
-                BLOCK_SIZE,
-                BLOCK_SIZE,
-            )
-        )
+        self.location.x = random.randint(0, WIDTH // BLOCK_SIZE - 1)
+        self.location.y = random.randint(0, HEIGHT // BLOCK_SIZE - 1)
+        self.timer = 0
+    def time(self, dt):
+        self.timer += dt
+        if self.timer == self.max_timer:
+            self.update()
+            self.timer = 0
+    def level(self):
+        global SCORE
+        global LEVEL
+        global FPS
+        if SCORE % 5 == 0:
+            LEVEL += 1
+            FPS += 2
 
+class Food(Fruit):
+    def __init__(self):
+        super().__init__(10, 10, YELLOW, 1, 0, 5)
+
+class Poison(Fruit):
+    def __init__(self):
+        super().__init__(20, 20, GREEN, -1, 0, 5)
+
+class Booster(Fruit):
+    def __init__(self):
+        super().__init__(20, 10, LIGHTBLUE, 5, 0, 5)
 
 class Snake:
     def __init__(self):
@@ -116,7 +122,6 @@ class Snake:
     #if its head is out of the border then the game will be over 
     def move(self, dx, dy):
         global running
-        # global SCORE
         for idx in range(len(self.points) - 1, 0, -1):
             self.points[idx].x = self.points[idx - 1].x
             self.points[idx].y = self.points[idx - 1].y
@@ -125,14 +130,9 @@ class Snake:
         self.points[0].y += dy
         
         head = self.points[0]
-        if head.x >= WIDTH // BLOCK_SIZE:
+        if head.x >= WIDTH // BLOCK_SIZE or head.x < 0 or head.y >= HEIGHT // BLOCK_SIZE or head.y < 0:
             running = False
-        elif head.x < 0:
-            running = False
-        elif head.y >= HEIGHT // BLOCK_SIZE:
-            running = False
-        elif head.y < 0:
-            running = False
+
     #function that checks a collision between food and snake
     def check_collision(self, food):
         if self.points[0].x != food.x:
@@ -140,18 +140,6 @@ class Snake:
         if self.points[0].y != food.y:
             return False
         return True
-    def check_poison_collision(self, poison):
-        if self.points[0].x != poison.x:
-            return False
-        if self.points[0].y != poison.y:
-            return False
-        return True
-    # def self_collision(self):
-    #     global running
-    #     for i in self.points(self.points[0], len(self.points)):
-    #         if self.points[0].x == i.x or self.points[0].y == i.y:
-    #             running = False
-
 #drawing a grid where we play our game
 def draw_grid():
     for x in range(0, WIDTH, BLOCK_SIZE):
@@ -165,10 +153,15 @@ def main():
     global FPS
     global running
     snake = Snake()
-    food = Food(5, 5)
-    poison = Poison(10, 10)
+    food = Food()
+    poison = Poison()
+    booster = Booster()
     dx, dy = 0, 0
-    pygame.mixer.music.play(-1)
+    dt = 1 # get elapsed time since last frame
+    food.time(dt)   
+    poison.time(dt)
+    booster.time(dt)
+       # pygame.mixer.music.play(-1)
     while running:
         SCREEN.fill(WHITE)
         for event in pygame.event.get():
@@ -186,46 +179,38 @@ def main():
 
         snake.move(dx, dy)
         if snake.check_collision(food):
+            # pygame.mixer.music.pause()
+            eat_sound.play()
+            SCORE += food.score
+            snake.points.append(Point(food.x, food.y))
+            food.update()
+            food.level()
+        if snake.check_collision(booster):
+            # pygame.mixer.music.pause()
+            eat_sound.play()
+            SCORE += booster.score
+            snake.points.append(Point(booster.x, booster.y))
+            booster.update()
+            booster.level()
+        if snake.check_collision(poison):
             pygame.mixer.music.pause()
             eat_sound.play()
-            eat_sound.stop()
-            pygame.mixer.music.unpause()
-            SCORE += 1
-            # if SCORE % 5 == 0:
-            #     LEVEL += 1
-            #     # FPS += 3
-
-            snake.points.append(Point(food.x, food.y))
-            food.location.x = random.randint(0, WIDTH // BLOCK_SIZE - 1)
-            food.location.y = random.randint(0, HEIGHT // BLOCK_SIZE - 1)
-        if snake.check_poison_collision(poison):
-            SCORE -= 1
-            # if SCORE % 5 == 0:
-            #     LEVEL += 1
-            #     # FPS += 3
+            SCORE += poison.score
             snake.points.remove(snake.points[len(snake.points)-1])
-            poison.location.x = random.randint(0, WIDTH // BLOCK_SIZE - 1)
-            poison.location.y = random.randint(0, HEIGHT // BLOCK_SIZE - 1)
-        
+            poison.update()
+            poison.level()
         score = score_font.render(f" Your score: {SCORE}", True, (0, 0, 0))
         level = level_font.render(f" Level: {LEVEL}", True, (0, 0, 0))
 
         SCREEN.blit(score, (0, 0))
         SCREEN.blit(level, (20, 20))
 
-        food.update()
+        food.draw()
         snake.update()
-        poison.update()
+        poison.draw()
+        booster.draw()
         draw_grid()
-        
-        # if running == False:
-        #     LOSS_SCREEN.fill(LIGHTBLUE)
-        #     score = score_font.render(f" Your score: {SCORE}", True, (WHITE))
-        #     LOSS_SCREEN.blit(score, (WIDTH // 2 - 80, HEIGHT // 2))
-        #     pygame.time.wait(5000)
         pygame.display.flip()
         clock.tick(FPS)
 
-
-# if __name__ == '__main__':
 main()

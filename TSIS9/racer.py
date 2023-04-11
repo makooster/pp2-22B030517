@@ -19,6 +19,7 @@ score_font = pygame.font.SysFont("Verdana", 30)
 life_font = pygame.font.SysFont("Verdana", 30)
 background_sound = pygame.mixer.Sound("./materials/background.wav")
 crush_sound = pygame.mixer.Sound("./materials/crash.wav")
+background_y = 0
 
 
 
@@ -26,7 +27,7 @@ crush_sound = pygame.mixer.Sound("./materials/crash.wav")
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.speed = 5
+        self.speed = random.randint(6,8)
         self.image = pygame.image.load('./materials/Enemy.png')
         self.rect = self.image.get_rect()
         self.rect.center = (
@@ -69,14 +70,15 @@ coins = pygame.sprite.Group()
 class Coin(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        global LIFE
-        global running
-        self.image = pygame.image.load("./materials/cent.png")
-        self.speed = 7
+        self.speed = random.randint(5, 8)
+        self.random_number = random.randint(0, 6)
+        if self.random_number in [0,1,2]:
+            self.image = pygame.image.load("./materials/coin.png")
+        else:
+            self.image = pygame.image.load("./materials/cent.png")
         self.resized_image = pygame.transform.scale(self.image, (50, 50))
         self.rect = self.resized_image.get_rect()
         if WIDTH - self.rect.width > self.rect.width:
-            LIFE -= 1
             x = random.randint(self.rect.width, WIDTH - self.rect.width)
         else:
             x = random.randint(WIDTH - self.rect.width, self.rect.width)
@@ -88,6 +90,8 @@ class Coin(pygame.sprite.Sprite):
     def update(self):
         self.rect.move_ip(0, self.speed)
         if self.rect.y > HEIGHT:
+            global LIFE
+            LIFE -= 1
             self.rect.center = (
                 random.randint(self.rect.width, WIDTH - self.rect.width),
                 0,
@@ -98,10 +102,12 @@ class Coin(pygame.sprite.Sprite):
             return True
         
         return False
-    
+    def is_mega_coin(self):
+        return self.random_number in [0,1,2]
     
 def main():
     #creating all characters and resources
+    global background_y
     global coins
     running = True
     player = Player()
@@ -114,12 +120,19 @@ def main():
 
     while running:
         global SCORE
-        SCREEN.blit(background, (0, 0))
+        global LIFE
+        SCREEN.fill(WHITE)
+        background_rect = background.get_rect()
+        SCREEN.blit(background, (0, background_y))
+        SCREEN.blit(background, (0, background_y - background_rect.height)) 
+        background_y += 4  # Update the y-coordinate to make the image move
+        if background_y > background_rect.height:
+            background_y = 0
+        
         score = score_font.render(f"Your score: {SCORE}", True, BLACK)
         SCREEN.blit(score, (0, 0))
         life = life_font.render(f"Your life: {LIFE}", True, BLACK)
         SCREEN.blit(life, (0, 20))
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT or LIFE == 0:
                 running = False
@@ -133,6 +146,12 @@ def main():
                 coins.remove(coin)
                 SCORE += 1
                 coins.add(Coin())
+                if coin.is_mega_coin():
+                        SCORE += 4
+        if SCORE > 30:
+            enemy.speed = random.randint(8, 11)
+        if LIFE == 0:
+            running = False
 
         coin.draw(SCREEN)
         coin.update()
@@ -143,7 +162,6 @@ def main():
             background_sound.stop() # stop playing the background music
             crush_sound.play() # play the crash sound effect
             pygame.time.wait(2000)
-            
             running = False
         
         pygame.display.flip()
