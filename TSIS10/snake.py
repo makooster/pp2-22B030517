@@ -1,6 +1,7 @@
+from config import data
 import random
-
 import pygame
+import psycopg2
 
 pygame.init()
 WIDTH, HEIGHT = 600, 600
@@ -10,11 +11,12 @@ RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 GREEN = (0, 255, 0)
+GREY = (128, 128, 128)
 LIGHTBLUE = (0 ,0 , 127)
 FPS = 6
 SCORE = 0
 LEVEL = 1
-
+FIXED_SCORE = 5
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
 LOSS_SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
@@ -26,6 +28,36 @@ pygame.display.set_caption('Snake')
 score_font = pygame.font.SysFont('Verdana', 20)
 level_font = pygame.font.SysFont('Verdana', 20)
 running = True
+
+db = psycopg2.connect(**data)
+username = input("Enter your username: ")
+cur = db.cursor()
+cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+user = cur.fetchone()
+
+# if the user exists, show their current level
+if user:
+    print("Your current level is:", user[2])
+else:
+    # if the user doesn't exist, create a new user with level 1
+    cur.execute("INSERT INTO users (username) VALUES (%s)", (username,))
+    db.commit()
+    print("Welcome to Snake! Your current level is 1.")
+
+# id = user[1]
+level = user[2] if user else 1
+paused = False
+
+def save_user():
+    global running
+    level = LEVEL
+    cur.execute(f"UPDATE users SET level = '{level}' WHERE username = '{username}'", (level))
+    # cur.execute(f"UPDATE user_score SET score = '{SCORE}' WHERE user_id = '{id}'",)
+    # cur.execute("UPDATE user_score ('user_id', 'score', 'level') SET VALUES (%s, %s, %s)", (user[0], SCORE, level))
+    db.commit()
+    db.close()
+    print("Game saved!")
+    running = False
 
 class Point:
     def __init__(self, x, y):
@@ -70,10 +102,12 @@ class Fruit:
     def level(self):
         global SCORE
         global LEVEL
+        global FIXED_SCORE
         global FPS
-        if SCORE % 5 == 0:
+        if SCORE >= FIXED_SCORE:
             LEVEL += 1
             FPS += 2
+            FIXED_SCORE += 5
 
 class Food(Fruit):
     def __init__(self):
@@ -86,7 +120,22 @@ class Poison(Fruit):
 class Booster(Fruit):
     def __init__(self):
         super().__init__(20, 10, LIGHTBLUE, 5, 0, 5)
+# class Wall:
+#     def __init__(self):
+#         self.body = []
+#         self.load_wall()
 
+#     def load_wall(self, level = 1):
+#         with open(f'level{level}.txt', 'r') as f:
+#             wall_body = f.readlines()
+        
+#         for i, line in enumerate(wall_body):
+#             for j, value in enumerate(line):
+#                 if value == "#":
+#                     self.body.append([j,i])
+#     def draw(self):
+#         for x, y in self.body:
+#             pygame.draw.rect(SCREEN, GREY, (x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE))
 class Snake:
     def __init__(self):
         self.points = [
@@ -152,6 +201,7 @@ def main():
     global LEVEL
     global FPS
     global running
+    paused = False
     snake = Snake()
     food = Food()
     poison = Poison()
@@ -162,55 +212,63 @@ def main():
     poison.time(dt)
     booster.time(dt)
        # pygame.mixer.music.play(-1)
-    while running:
-        SCREEN.fill(WHITE)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+    while True:
+        # play the game...
+        while running:
+            SCREEN.fill(WHITE)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        dx, dy = 0, -1
+                    elif event.key == pygame.K_DOWN:
+                        dx, dy = 0, +1
+                    elif event.key == pygame.K_LEFT:
+                        dx, dy = -1, 0
+                    elif event.key == pygame.K_RIGHT:
+                        dx, dy = +1, 0
+                    elif event.key == pygame.K_p:
+                        paused = True
+
+            snake.move(dx, dy)
+            if snake.check_collision(food):
+                # pygame.mixer.music.pause()
+                eat_sound.play()
+                SCORE += food.score
+                snake.points.append(Point(food.x, food.y))
+                food.update()
+                food.level()
+            if snake.check_collision(booster):
+                # pygame.mixer.music.pause()
+                eat_sound.play()
+                SCORE += booster.score
+                snake.points.append(Point(booster.x, booster.y))
+                booster.update()
+                booster.level()
+            if snake.check_collision(poison):
+                pygame.mixer.music.pause()
+                eat_sound.play()
+                SCORE += poison.score
+                snake.points.remove(snake.points[len(snake.points)-1])
+                poison.update()
+                poison.level()
+            score = score_font.render(f" Your score: {SCORE}", True, (0, 0, 0))
+            level = level_font.render(f" Level: {LEVEL}", True, (0, 0, 0))
+
+            SCREEN.blit(score, (0, 0))
+            SCREEN.blit(level, (20, 20))
+
+            food.draw()
+            snake.update()
+            poison.draw()
+            booster.draw()
+            draw_grid()
+            pygame.display.flip()
+            clock.tick(FPS)
+        # if the user pauses the game (e.g. by pressing "P")
+            if paused:
+                # save the user's score and level to the database
+                save_user()
                 running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    dx, dy = 0, -1
-                elif event.key == pygame.K_DOWN:
-                    dx, dy = 0, +1
-                elif event.key == pygame.K_LEFT:
-                    dx, dy = -1, 0
-                elif event.key == pygame.K_RIGHT:
-                    dx, dy = +1, 0
-
-        snake.move(dx, dy)
-        if snake.check_collision(food):
-            # pygame.mixer.music.pause()
-            eat_sound.play()
-            SCORE += food.score
-            snake.points.append(Point(food.x, food.y))
-            food.update()
-            food.level()
-        if snake.check_collision(booster):
-            # pygame.mixer.music.pause()
-            eat_sound.play()
-            SCORE += booster.score
-            snake.points.append(Point(booster.x, booster.y))
-            booster.update()
-            booster.level()
-        if snake.check_collision(poison):
-            pygame.mixer.music.pause()
-            eat_sound.play()
-            SCORE += poison.score
-            snake.points.remove(snake.points[len(snake.points)-1])
-            poison.update()
-            poison.level()
-        score = score_font.render(f" Your score: {SCORE}", True, (0, 0, 0))
-        level = level_font.render(f" Level: {LEVEL}", True, (0, 0, 0))
-
-        SCREEN.blit(score, (0, 0))
-        SCREEN.blit(level, (20, 20))
-
-        food.draw()
-        snake.update()
-        poison.draw()
-        booster.draw()
-        draw_grid()
-        pygame.display.flip()
-        clock.tick(FPS)
-
 main()

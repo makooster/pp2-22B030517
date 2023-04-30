@@ -11,7 +11,7 @@ def get_distance(a,b):
 
 def right_triangle(screen, cur, end, d, color): 
     x1, y1, x2, y2 = cur[0], cur[1], end[0], end[1] 
-    difx = abs(x1-x2) 
+    # difx = abs(x1-x2) 
     dify = abs(y1-y2) 
     # if x1 <= x2: 
     if y1 < y2: 
@@ -47,7 +47,7 @@ last_pos = (0, 0)
 w = 2
 draw_line = False
 erase = False
-ed = 50
+# ed = 50
 
 di = {
     'sqr': False,
